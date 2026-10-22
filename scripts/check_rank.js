@@ -34,7 +34,7 @@ async function readCards(page) {
     const out = [];
     for (const a of document.querySelectorAll('a[href]')) {
       const r = a.getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) continue;
+      if (r.width <= 0 || r.height <= 0 || !(a.innerText || '').trim()) continue;
       const cs = getComputedStyle(a);
       if (cs.visibility === 'hidden' || cs.display === 'none') continue;
       out.push({ h: a.href, y: Math.round(r.top + scrollY), t: (a.innerText || '').trim().slice(0, 40) });
@@ -44,15 +44,26 @@ async function readCards(page) {
 }
 
 function rankCards(links) {
+  // 광고(ader.naver.com 등)·플레이스·지도·네이버 서비스 링크는 제외하고,
+  // 카페/블로그/동영상 카드와 일반 웹사이트(개인 홈페이지) 카드를 화면 순서대로 센다
   const seen = new Set(), cards = [];
+  let lastHost = null;
   for (const x of links.sort((a, b) => a.y - b.y)) {
     let m, key, type;
-    if ((m = x.h.match(/(?:m\.)?blog\.naver\.com\/([A-Za-z0-9_]+)\/(\d+)/))) { type = 'blog'; key = 'blog/' + m[1] + '/' + m[2]; }
-    else if ((m = x.h.match(/(?:m\.)?cafe\.naver\.com\/([A-Za-z0-9_]+)\/(\d+)/))) { type = 'cafe'; key = 'cafe/' + m[1] + '/' + m[2]; }
-    else if ((m = x.h.match(/(?:m\.)?tv\.naver\.com\/v\/(\d+)/))) { type = 'video'; key = 'video/' + m[1]; }
-    else continue;
+    if ((m = x.h.match(/^https?:\/\/(?:m\.)?blog\.naver\.com\/([A-Za-z0-9_]+)\/(\d+)/))) { type = 'blog'; key = 'blog/' + m[1] + '/' + m[2]; }
+    else if ((m = x.h.match(/^https?:\/\/(?:m\.)?cafe\.naver\.com\/([A-Za-z0-9_]+)\/(\d+)/))) { type = 'cafe'; key = 'cafe/' + m[1] + '/' + m[2]; }
+    else if ((m = x.h.match(/^https?:\/\/(?:m\.)?tv\.naver\.com\/v\/(\d+)/))) { type = 'video'; key = 'video/' + m[1]; }
+    else {
+      let host;
+      try { host = new URL(x.h).hostname; } catch (e) { continue; }
+      if (!/^https?:/.test(x.h) || /(^|\.)(naver\.com|naver\.net|pstatic\.net|navercorp\.com)$/.test(host)) continue;
+      type = 'web';
+      key = 'web/' + host;
+      if (host === lastHost) continue; // 같은 카드 안의 사이트 링크·제목 링크 중복
+    }
     if (seen.has(key)) continue;
     seen.add(key);
+    lastHost = type === 'web' ? key.slice(4) : null;
     cards.push({ rank: cards.length + 1, type, key, title: x.t });
   }
   return cards;
@@ -65,7 +76,7 @@ async function check(ctx, region, kw, cafeList) {
       await page.goto('https://m.search.naver.com/search.naver?where=m&query=' + encodeURIComponent(kw), { waitUntil: 'networkidle', timeout: 60000 });
       await page.waitForTimeout(1500);
       const cards = rankCards(await readCards(page));
-      if (cards.length < 3) throw new Error('결과 카드를 읽지 못함(' + cards.length + ')');
+      if (cards.length < 1) throw new Error('결과 카드를 읽지 못함(' + cards.length + ')');
       let hit = null;
       for (const c of cards) {
         const [, a, b] = c.key.split('/');
