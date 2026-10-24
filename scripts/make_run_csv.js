@@ -1,5 +1,6 @@
 // 조사 개요(실행 조건) CSV 생성: item,value
-// 사용: node scripts/make_run_csv.js results/YYYY-MM-DD.json 출력.csv [비고]
+// 사용: RANK_MODEL="모델 이름" node scripts/make_run_csv.js results/YYYY-MM-DD.json 출력.csv [비고]
+// RANK_MODEL 은 이 조사를 실행한 세션의 모델(get_session 의 session_context.model 등으로 확인한 값)
 const fs = require('fs');
 const d = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const kst = s => new Date(new Date(s).getTime() + 9 * 3600e3).toISOString().replace('T', ' ').slice(0, 19);
@@ -11,6 +12,7 @@ const rows = [
   ['조사 종료', kst(d.endedAt) + ' (KST)'],
   ['걸린 시간', `${Math.floor(sec / 60)}분 ${sec % 60}초`],
   ['사용한 브라우저', d.browser],
+  ['사용한 모델', process.env.RANK_MODEL || '확인 불가'],
   ['접속 환경', '서버에서 모바일 네이버 검색(로그인 없음, 위치 정보 없음)'],
   ['조사 대상', `${d.regions.length}개 지역 / 전체 ${total}개 키워드`],
   ['조사 완료', `${total - un}개`],
