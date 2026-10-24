@@ -3,7 +3,8 @@
 // 직전 기록을 주면 prev_rank, prev_date 열이 추가되어 보고서 그래프에 '이전 조사' 선이 겹쳐 그려진다
 const fs = require('fs');
 const d = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-const prev = process.argv[4] ? JSON.parse(fs.readFileSync(process.argv[4], 'utf8')) : null;
+const readPrev = f => { const j = JSON.parse(fs.readFileSync(f, 'utf8')); return j.data && j.data.rows ? j.data : j; }; // ArtifactData 저장 파일({data:{...}})과 일반 history 파일 모두 허용
+const prev = process.argv[4] ? readPrev(process.argv[4]) : null;
 const pm = new Map(prev ? prev.rows.map(r => [r[1], r[2] === 'ok' && r[3] != null ? r[3] : '—']) : []);
 const rows = [['region', 'keyword', 'mark', 'status', 'rank', 'source'].concat(prev ? ['prev_rank', 'prev_date'] : [])];
 for (const x of d.results) {

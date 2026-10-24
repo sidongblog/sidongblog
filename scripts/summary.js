@@ -12,7 +12,8 @@ console.log('지역별 5위 이내: ' + Object.entries(by).map(([r, v]) => `${r}
 const low = d.results.filter(x => x.status === 'ok' && x.cards < 6).length, retried = d.results.filter(x => (x.attempts || 1) > 1).length;
 console.log(`읽기 점검: 카드 6개 미만 ${low}개, 재시도 후 성공 ${retried}개${low > 15 ? ' ⚠ 카드 수가 적은 키워드가 많음(로딩 이상 가능)' : ''}`);
 if (process.argv[3]) {
-  const prev = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+  const prevRaw = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+  const prev = prevRaw.data && prevRaw.data.rows ? prevRaw.data : prevRaw;
   const pm = new Map(prev.rows.map(r => [r[1], { s: r[2], rank: r[3] }]));
   const ent = [], ext = [], mov = [];
   for (const x of d.results) {
