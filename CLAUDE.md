@@ -12,7 +12,7 @@
 
 ## 절차 (스크립트가 대부분 처리)
 1. `NODE_PATH=$(npm root -g) node scripts/check_rank.js results/YYYY-MM-DD.json` (약 4분)
-2. `node scripts/make_csv.js results/YYYY-MM-DD.json results/ranks.csv` / `RANK_MODEL="<실행 모델>" node scripts/make_run_csv.js results/YYYY-MM-DD.json results/run.csv ["비고"]` — 조사 개요에 항상 **사용한 모델**을 적는다. get_session 으로 확인한 session_context.model 을 RANK_MODEL 에 넣고, 확인하지 못하면 넣지 않는다(개요에 '확인 불가'로 표시).
+2. `node scripts/make_csv.js results/YYYY-MM-DD.json results/ranks.csv` / `RANK_MODEL="<실행 모델>" node scripts/make_run_csv.js results/YYYY-MM-DD.json results/run.csv ["비고"]` — 조사 개요에 항상 **사용한 모델**을 적는다. get_session 으로 확인한 session_context.model 을 RANK_MODEL 에 넣고, 확인하지 못하면 넣지 않는다(개요에 '확인 불가'로 표시). 조사 개요에는 **사용 토큰·금액**도 항상 적는다: get_session 의 `external_metadata.usage`(input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)를 환경변수 `RANK_IN RANK_OUT RANK_CACHE_READ RANK_CACHE_WRITE RANK_COST` 로 넘긴다(보고서 갱신 직전까지의 이 세션 누적이다. 확인하지 못하면 넣지 않는다 → '확인 불가').
 3. 아티팩트에 두 CSV를 에셋으로 올리고, ArtifactData 로 `datasets/ranks`, `datasets/run` 의 `source.url`(과 `updated`)만 새 `/_blob/<id>` 로 바꾼다(이전 에셋은 삭제).
 4. 전회 비교: ArtifactData `history` 컬렉션에서 오늘 이전 최신 문서를 받아 `node scripts/summary.js results/YYYY-MM-DD.json 그_파일.json`. 그다음 `node scripts/make_history.js results/YYYY-MM-DD.json YYYY-MM-DD hist.json` 로 오늘 기록을 `history/YYYY-MM-DD` 에 저장.
 5. 저장소 push 는 하지 않는다(예약 세션에는 권한 없음). 비교 기록은 아티팩트 DB 가 대신한다.
