@@ -12,9 +12,10 @@ const n = v => (v == null || v === '' || isNaN(Number(v))) ? null : Number(v).to
 function usage() {
   const e = process.env;
   if (e.RANK_USAGE_TEXT) return e.RANK_USAGE_TEXT;
+  const rate = Number(e.RANK_KRW_RATE) || 1400; // 대략적인 환산용 고정 환율(원/달러)
   const [i, o, cr, cw] = [e.RANK_IN, e.RANK_OUT, e.RANK_CACHE_READ, e.RANK_CACHE_WRITE].map(n);
   if (!o || e.RANK_COST == null || e.RANK_COST === '') return '확인 불가';
-  return `입력 ${i ?? '?'} · 출력 ${o} · 캐시 읽기 ${cr ?? '?'} · 캐시 쓰기 ${cw ?? '?'} 토큰 / 약 $${Number(e.RANK_COST).toFixed(3)} (보고서 갱신 직전까지의 이 세션 누적)`;
+  return `입력 ${i ?? '?'} · 출력 ${o} · 캐시 읽기 ${cr ?? '?'} · 캐시 쓰기 ${cw ?? '?'} 토큰 / 약 $${Number(e.RANK_COST).toFixed(3)} (약 ${Math.round(Number(e.RANK_COST) * rate).toLocaleString('en-US')}원, 환율 ${rate.toLocaleString('en-US')}원/달러 가정) (보고서 갱신 직전까지의 이 세션 누적)`;
 }
 const rows = [
   ['조사 시작', kst(d.startedAt) + ' (KST)'],
