@@ -15,7 +15,12 @@
 
 ## 절차 (스크립트가 대부분 처리)
 1. `NODE_PATH=$(npm root -g) node scripts/check_rank.js results/YYYY-MM-DD.json` (약 4분)
-2. `node scripts/make_csv.js results/YYYY-MM-DD.json results/ranks.csv` / `RANK_MODEL="<실행 모델>" node scripts/make_run_csv.js results/YYYY-MM-DD.json results/run.csv ["비고"]` — 조사 개요에 항상 **사용한 모델**을 적는다. get_session 으로 확인한 session_context.model 을 RANK_MODEL 에 넣고, 확인하지 못하면 넣지 않는다(개요에 '확인 불가'로 표시). 조사 개요에는 사용량을 **두 줄로 따로** 항상 적는다(추정치): ① **대화 전체 사용 토큰·금액**, ② **이번 조사 사용 토큰·금액**. 조사를 시작하기 **전에** get_session 의 `external_metadata.usage`(input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)를 기록해 두고(`RANK_BASE_IN/OUT/CACHE_READ/CACHE_WRITE/COST`), 보고서 파일을 만들기 직전에 한 번 더 읽어 `RANK_IN/OUT/CACHE_READ/CACHE_WRITE/COST` 로 넘긴다. ②는 스크립트가 그 차이로 계산한다. 금액은 USD와 원화 환산(기본 1,400원/달러 가정, `RANK_KRW_RATE` 로 변경)을 함께 적는다. 확인하지 못한 값은 '확인 불가'.
+2. 보고용 CSV 만들기. 모델·사용량은 `get_session` 이 없는 예약 세션에서도 얻을 수 있게 **로컬 기록 합산 스크립트**를 쓴다(`get_session` 은 예약 세션에 없어 쓰지 않는다).
+   - 모델 ID: 시스템 프롬프트의 "configured for the model `...`" 문구에서 읽는다(예: `claude-haiku-5-5`). 읽지 못하면 모델 줄이 '확인 불가'로 표시된다(추측 금지).
+   - 조사를 **시작하기 전에**(저장소를 받은 직후): `node scripts/usage_local.js --model <모델ID> --prefix RANK_BASE_ > results/usage_start.env`
+   - 보고서 파일을 만들기 직전: `node scripts/usage_local.js --model <모델ID> --prefix RANK_ > results/usage_end.env` 그다음 `set -a; . results/usage_start.env; . results/usage_end.env; set +a`
+   - `node scripts/make_csv.js results/YYYY-MM-DD.json results/ranks.csv` 와 `RANK_MODEL="<모델ID>" node scripts/make_run_csv.js results/YYYY-MM-DD.json results/run.csv ["비고"]`
+   - 조사 개요에는 항상 세 줄: **사용한 모델**, **대화 전체 사용 토큰·금액(추정)**, **이번 조사 사용 토큰·금액(추정)**(시작 전 대비 증가분). 금액은 USD와 원화 환산(기본 1,400원/달러 가정, `RANK_KRW_RATE` 로 변경)을 함께 적는다. 단가를 아는 모델(현재 claude-haiku-5-5, 실측 3건과 대조해 검증)만 금액을 계산하고, 모르는 모델은 토큰만 적고 '금액 확인 불가'로 표시한다.
 3. 아티팩트에 두 CSV를 에셋으로 올리고, ArtifactData 로 `datasets/ranks`, `datasets/run` 의 `source.url`(과 `updated`)만 새 `/_blob/<id>` 로 바꾼다(이전 에셋은 삭제).
 4. 전회 비교: ArtifactData `history` 컬렉션에서 오늘 이전 최신 문서를 받아 `node scripts/summary.js results/YYYY-MM-DD.json 그_파일.json`. 그다음 `node scripts/make_history.js results/YYYY-MM-DD.json YYYY-MM-DD hist.json` 로 오늘 기록을 `history/YYYY-MM-DD` 에 저장.
 5. 저장소 push 는 하지 않는다(예약 세션에는 권한 없음). 비교 기록은 아티팩트 DB 가 대신한다.

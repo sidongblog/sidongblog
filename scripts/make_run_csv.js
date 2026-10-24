@@ -13,14 +13,14 @@ const n = v => (v == null || v === '' || isNaN(Number(v))) ? null : Number(v);
 const f = v => Number(v).toLocaleString('en-US');
 const RATE = Number(process.env.RANK_KRW_RATE) || 1400; // 대략적인 환산용 고정 환율(원/달러)
 const money = c => `약 $${Number(c).toFixed(3)} (약 ${f(Math.round(Number(c) * RATE))}원, 환율 ${f(RATE)}원/달러 가정)`;
-const text = (i, o, cr, cw, c) => `입력 ${f(i)} · 출력 ${f(o)} · 캐시 읽기 ${f(cr)} · 캐시 쓰기 ${f(cw)} 토큰 / ${money(c)}`;
+const text = (i, o, cr, cw, c) => `입력 ${f(i)} · 출력 ${f(o)} · 캐시 읽기 ${f(cr)} · 캐시 쓰기 ${f(cw)} 토큰 / ${c == null ? '금액 확인 불가(이 모델의 단가를 확인하지 못함)' : money(c)}`;
 // 대화(세션) 전체 사용량: 보고서 갱신 직전까지의 누적 (추정치)
 function totalUsage() {
   const e = process.env;
   if (e.RANK_USAGE_TEXT) return e.RANK_USAGE_TEXT;
   const [i, o, cr, cw, c] = [e.RANK_IN, e.RANK_OUT, e.RANK_CACHE_READ, e.RANK_CACHE_WRITE, e.RANK_COST].map(n);
-  if (o == null || c == null) return '확인 불가';
-  return text(i ?? 0, o, cr ?? 0, cw ?? 0, c) + ' (보고서 갱신 직전까지 이 대화 누적)';
+  if (o == null) return '확인 불가';
+  return text(i ?? 0, o, cr ?? 0, cw ?? 0, c) + ' (보고서 갱신 직전까지 이 대화 누적, 세션 로컬 기록 합산 추정)';
 }
 // 이번 조사 1회분 사용량 = 보고서 갱신 직전 누적 - 조사 시작 전 누적 (추정치)
 function surveyUsage() {
@@ -28,9 +28,9 @@ function surveyUsage() {
   if (e.RANK_SURVEY_TEXT) return e.RANK_SURVEY_TEXT;
   const t = [e.RANK_IN, e.RANK_OUT, e.RANK_CACHE_READ, e.RANK_CACHE_WRITE, e.RANK_COST].map(n);
   const b = [e.RANK_BASE_IN, e.RANK_BASE_OUT, e.RANK_BASE_CACHE_READ, e.RANK_BASE_CACHE_WRITE, e.RANK_BASE_COST].map(n);
-  if (t.some(x => x == null) || b.some(x => x == null)) return '확인 불가 (조사 시작 전 사용량을 기록하지 못함)';
-  const d = t.map((x, i) => Math.max(0, x - b[i]));
-  return text(...d) + ' (조사 시작 전 대비 증가분)';
+  if (t.slice(0, 4).some(x => x == null) || b.slice(0, 4).some(x => x == null)) return '확인 불가 (조사 시작 전 사용량을 기록하지 못함)';
+  const d = t.map((x, i) => (x == null || b[i] == null) ? null : Math.max(0, x - b[i]));
+  return text(...d) + ' (조사 시작 전 대비 증가분, 추정)';
 }
 const rows = [
   ['조사 시작', kst(d.startedAt) + ' (KST)'],
