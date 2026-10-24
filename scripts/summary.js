@@ -9,6 +9,8 @@ for (const x of d.results) { c[st(x)]++; by[x.region] = by[x.region] || { ok: 0,
 const total = d.results.length;
 console.log(`전체 ${total} = 5위 이내 ${c.ok} + 5위 밖 ${c.out} + 1p에 없음 ${c.none} + 미확인 ${c.un} (합계 ${c.ok + c.out + c.none + c.un === total ? '일치' : '불일치'})`);
 console.log('지역별 5위 이내: ' + Object.entries(by).map(([r, v]) => `${r} ${v.ok}/${v.n}${v.un ? '(미확인 ' + v.un + ')' : ''}`).join(', '));
+const low = d.results.filter(x => x.status === 'ok' && x.cards < 6).length, retried = d.results.filter(x => (x.attempts || 1) > 1).length;
+console.log(`읽기 점검: 카드 6개 미만 ${low}개, 재시도 후 성공 ${retried}개${low > 15 ? ' ⚠ 카드 수가 적은 키워드가 많음(로딩 이상 가능)' : ''}`);
 if (process.argv[3]) {
   const prev = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
   const pm = new Map(prev.rows.map(r => [r[1], { s: r[2], rank: r[3] }]));

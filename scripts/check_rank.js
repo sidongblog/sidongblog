@@ -69,14 +69,37 @@ function rankCards(links) {
   return cards;
 }
 
+// 페이지가 끝까지 로딩됐는지 확인하기 위해 끝까지 내려 보고(지연 로딩 유도), 하단 약관 링크가 있어야 완료로 본다
+async function loadFully(page) {
+  await page.evaluate(async () => {
+    for (let i = 0; i < 30; i++) {
+      window.scrollBy(0, 900);
+      await new Promise(r => setTimeout(r, 150));
+      if (window.scrollY + window.innerHeight >= document.body.scrollHeight - 5) break;
+    }
+    window.scrollTo(0, 0);
+  });
+  let prev = -1, cards = [], footer = false;
+  for (let i = 0; i < 8; i++) {
+    await page.waitForTimeout(800);
+    cards = rankCards(await readCards(page));
+    footer = await page.evaluate(() => !!document.querySelector('a[href*="policy.naver.com"]'));
+    if (footer && cards.length === prev) break; // 하단까지 로딩되고 카드 수가 안정됨
+    prev = cards.length;
+  }
+  return { cards, footer, stable: footer && cards.length === prev };
+}
+
 async function check(ctx, region, kw, cafeList) {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let lastErr = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
     const page = await ctx.newPage();
     try {
       await page.goto('https://m.search.naver.com/search.naver?where=m&query=' + encodeURIComponent(kw), { waitUntil: 'networkidle', timeout: 60000 });
-      await page.waitForTimeout(1500);
-      const cards = rankCards(await readCards(page));
-      if (cards.length < 1) throw new Error('결과 카드를 읽지 못함(' + cards.length + ')');
+      const { cards, footer, stable } = await loadFully(page);
+      if (!footer) throw new Error('페이지 하단까지 로딩되지 않음');
+      if (!stable) throw new Error('카드 수가 안정되지 않음');
+      if (cards.length < 1) throw new Error('결과 카드를 읽지 못함');
       let hit = null;
       for (const c of cards) {
         const [, a, b] = c.key.split('/');
@@ -84,12 +107,13 @@ async function check(ctx, region, kw, cafeList) {
         if (c.type === 'cafe' && cafeList.includes(a + '/' + b)) { hit = { rank: c.rank, source: '인기통 카페', title: c.title }; break; }
       }
       await page.close();
-      return { region, keyword: kw, status: 'ok', cards: cards.length, hit };
+      return { region, keyword: kw, status: 'ok', cards: cards.length, attempts: attempt + 1, hit };
     } catch (e) {
+      lastErr = String(e.message).slice(0, 100);
       await page.close().catch(() => {});
-      if (attempt === 1) return { region, keyword: kw, status: 'unconfirmed', error: String(e.message).slice(0, 100) };
     }
   }
+  return { region, keyword: kw, status: 'unconfirmed', error: lastErr };
 }
 
 (async () => {
