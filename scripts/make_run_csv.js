@@ -2,6 +2,7 @@
 // 사용: RANK_MODEL="모델 이름" node scripts/make_run_csv.js results/YYYY-MM-DD.json 출력.csv [비고]
 // 대화 전체 사용량: RANK_IN, RANK_OUT, RANK_CACHE_READ, RANK_CACHE_WRITE, RANK_COST(USD) (get_session 의 external_metadata.usage 값, 또는 RANK_USAGE_TEXT)
 // 이번 조사 1회분: 같은 5개 값의 조사 시작 전 기록 RANK_BASE_IN, RANK_BASE_OUT, RANK_BASE_CACHE_READ, RANK_BASE_CACHE_WRITE, RANK_BASE_COST (또는 RANK_SURVEY_TEXT) — 전체 값에서 뺀 증가분
+// 세 줄 요약: RANK_HISTORY_DIR=이전 조사 기록(history *.json) 폴더. 없으면 요약 행을 만들지 않음
 // RANK_MODEL 은 이 조사를 실행한 세션의 모델(get_session 의 session_context.model 등으로 확인한 값)
 const fs = require('fs');
 const d = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
@@ -48,5 +49,10 @@ const rows = [
   ['성공 기준', '일반 콘텐츠 카드 순위 5위 이내 (광고·플레이스·이미지 제외)'],
 ];
 if (process.argv[4]) rows.push(['비고', process.argv[4]]);
+// 세 줄 요약: RANK_HISTORY_DIR(예: results/prev/history, 이전 조사 기록 폴더)가 있으면 맨 앞에 '요약 1~3' 행으로 넣는다
+if (process.env.RANK_HISTORY_DIR !== undefined) {
+  const lines = require('./summary_lib').threeLines(d, process.env.RANK_HISTORY_DIR);
+  rows.unshift(...lines.map((l, i) => ['요약 ' + (i + 1), l]));
+}
 fs.writeFileSync(process.argv[3], 'item,value\n' + rows.map(r => r.map(c => /[",\n]/.test(c) ? '"' + String(c).replace(/"/g, '""') + '"' : c).join(',')).join('\n') + '\n');
 console.log('saved', process.argv[3]);
